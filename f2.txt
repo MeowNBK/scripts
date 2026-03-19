@@ -1,0 +1,101 @@
+Sub GenerateMultipleMixedTests()
+    Dim folderPath As String
+    Dim outputFolder As String
+    Dim fileName As String
+    Dim fileList() As String
+    Dim fileCount As Integer
+    Dim i As Integer, j As Integer, randomFileIndex As Integer
+    Dim sourceDoc As Document, newDoc As Document
+    Dim rngStart As Range, rngEnd As Range
+    Dim totalQuestions As Integer
+    Dim numTestsToGenerate As Integer
+    
+    ' ==========================================
+    ' BASIC CONFIGURATION
+    ' ==========================================
+    folderPath = "C:\DeThi\"
+    outputFolder = "C:\DeThi\Output\"
+    totalQuestions = 40
+    numTestsToGenerate = 5
+    ' ==========================================
+    
+    ' Create output folder if it doesn't exist
+    If Dir(outputFolder, vbDirectory) = "" Then
+        MkDir outputFolder
+    End If
+    
+    ' 1. Read all Word files in the source folder into an array
+    fileName = Dir(folderPath & "*.docx")
+    fileCount = 0
+    Do While fileName <> ""
+        fileCount = fileCount + 1
+        ReDim Preserve fileList(1 To fileCount)
+        fileList(fileCount) = folderPath & fileName
+        fileName = Dir()
+    Loop
+    
+    If fileCount = 0 Then
+        MsgBox "No .docx files found in the specified folder!", vbExclamation, "Error"
+        Exit Sub
+    End If
+    
+    Application.ScreenUpdating = False
+    Randomize ' Initialize random number generator
+    
+    ' 2. OUTER LOOP: Generate multiple tests
+    For j = 1 To numTestsToGenerate
+        Set newDoc = Documents.Add
+        
+        ' 3. INNER LOOP: Extract questions randomly
+        For i = 1 To totalQuestions
+            ' Randomly pick a file from the list
+            randomFileIndex = Int((fileCount * Rnd) + 1)
+            
+            ' Open the randomly selected file (hidden from view)
+            Set sourceDoc = Documents.Open(fileList(randomFileIndex), Visible:=False)
+            
+            Set rngStart = sourceDoc.Content
+            Set rngEnd = sourceDoc.Content
+            
+            ' Exact word match to prevent "Câu 1" from matching "Câu 10"
+            rngStart.Find.MatchWholeWord = True
+            rngEnd.Find.MatchWholeWord = True
+            
+            ' Find the start of the current question and the next question
+            rngStart.Find.Execute FindText:="Câu " & i, Forward:=True
+            
+            If i < totalQuestions Then
+                rngEnd.Find.Execute FindText:="Câu " & (i + 1), Forward:=True
+            Else
+                ' If it is the last question, select until the end of the file
+                rngEnd.Start = sourceDoc.Content.End
+            End If
+            
+            ' If the question is found, proceed to copy
+            If rngStart.Find.Found Then
+                If rngEnd.Find.Found And i < totalQuestions Then
+                    sourceDoc.Range(rngStart.Start, rngEnd.Start - 1).Copy
+                Else
+                    sourceDoc.Range(rngStart.Start, sourceDoc.Content.End).Copy
+                End If
+                
+                ' Paste into the new document (keeps original formatting)
+                newDoc.Range(newDoc.Content.End - 1, newDoc.Content.End - 1).Paste
+                newDoc.Content.InsertParagraphAfter
+            Else
+                ' Handle missing questions gracefully
+                newDoc.Content.InsertAfter "Câu " & i & ": (Error - Not found in file " & Dir(fileList(randomFileIndex)) & ")" & vbCr
+            End If
+            
+            ' Close the source document
+            sourceDoc.Close wdDoNotSaveChanges
+        Next i
+        
+        ' 4. Save and close the newly generated test
+        newDoc.SaveAs2 outputFolder & "Mixed_Test_" & j & ".docx"
+        newDoc.Close wdDoNotSaveChanges
+    Next j
+    
+    Application.ScreenUpdating = True
+    MsgBox "Successfully generated " & numTestsToGenerate & " MIXED tests in " & outputFolder, vbInformation, "Success"
+End Sub
