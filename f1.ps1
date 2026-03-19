@@ -1,4 +1,4 @@
-$sourceDir = "C:\DeThi" # Đổi lại đường dẫn thư mục của bạn
+$sourceDir = "E:\DeThi"
 Get-ChildItem -Path $sourceDir -Filter "*.docx" | ForEach-Object {
     if ($_.Name -match "^(\d+)-") {
         $num = [int]$matches[1]
@@ -12,4 +12,4 @@ Get-ChildItem -Path $sourceDir -Filter "*.docx" | ForEach-Object {
         Move-Item -Path $_.FullName -Destination $targetFolder
     }
 }
-Write-Host "Đã chia thư mục xong!"
+Write-Host "Mission failed successfully!"
